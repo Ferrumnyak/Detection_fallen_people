@@ -2,3 +2,7 @@
 !Dockerfile
 !app.py
 !requirements.txt
+!requirements-train.txt
+!prepare_data.py
+!train.py
+!data.yaml

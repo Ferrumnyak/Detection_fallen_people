@@ -39,8 +39,9 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/detect")
-def detect(
+@app.post("/detect", include_in_schema=False)
+@app.post("/predict")
+def predict(
     request: Request,
     file: Annotated[UploadFile, File(description="Изображение JPEG или PNG")],
     confidence: Annotated[float, Query(gt=0, le=1)] = 0.25,

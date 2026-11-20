@@ -1,4 +1,8 @@
-FROM python:3.13-slim-bookworm
+FROM python:3.13-slim-bookworm AS tracker
+
+RUN pip install --no-cache-dir mlflow==3.18.0
+
+FROM python:3.13-slim-bookworm AS runtime
 
 WORKDIR /app
 
@@ -18,3 +22,12 @@ COPY app.py .
 
 EXPOSE 8000
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+FROM runtime AS train
+
+COPY requirements-train.txt .
+RUN pip install --no-cache-dir -r requirements-train.txt
+COPY prepare_data.py train.py data.yaml ./
+CMD ["python", "train.py"]
+
+FROM runtime AS api

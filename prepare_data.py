@@ -1,3 +1,5 @@
+import json
+from hashlib import sha256
 from pathlib import Path
 from shutil import copyfile
 
@@ -39,13 +41,15 @@ def convert_label(annotation: Path, width: int, height: int) -> str:
 
 
 def main() -> None:
+    seen = {}
+    summary = {}
     for split, source_groups in SPLITS.items():
         images_dir = OUTPUT / "images" / split
         labels_dir = OUTPUT / "labels" / split
         images_dir.mkdir(parents=True, exist_ok=True)
         labels_dir.mkdir(parents=True, exist_ok=True)
 
-        count = 0
+        counts = {"frames": 0, "person": 0, "fallen_person": 0, "empty_frames": 0}
         for group in source_groups:
             source_dir = SOURCE / f"split{group}"
             images = sorted(source_dir.glob("*.png"))
@@ -56,12 +60,24 @@ def main() -> None:
                 annotation = image_path.with_suffix(".txt")
                 with Image.open(image_path) as image:
                     label = convert_label(annotation, *image.size)
+                    digest = sha256(image.convert("RGB").tobytes()).hexdigest()
+
+                previous_split, previous_image = seen.setdefault(digest, (split, image_path.name))
+                if previous_split != split:
+                    raise ValueError(f"Одинаковые кадры в разных выборках: {previous_image}, {image_path.name}")
 
                 copyfile(image_path, images_dir / image_path.name)
                 (labels_dir / annotation.name).write_text(label, encoding="utf-8")
-                count += 1
+                counts["frames"] += 1
+                counts["empty_frames"] += not label
+                for row in label.splitlines():
+                    class_name = "fallen_person" if row.startswith("1 ") else "person"
+                    counts[class_name] += 1
 
-        print(f"{split}: {count} изображений")
+        summary[split] = {"groups": list(source_groups), **counts}
+        print(f"{split}: {counts}")
+
+    (OUTPUT / "dataset.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

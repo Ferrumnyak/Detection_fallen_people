@@ -10,6 +10,8 @@
 # Веса моделей и результаты обучения
 *.pt
 /runs/
+/tracking/
+/weights/run.json
 
 # Локальное окружение Python
 /.venv/

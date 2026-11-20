@@ -1,0 +1,56 @@
+name: fpds
+
+services:
+  api:
+    build:
+      context: .
+      target: api
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./weights:/app/weights:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  tracker:
+    build:
+      context: .
+      target: tracker
+    command:
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --workers=1
+      - --backend-store-uri=sqlite:////tracking/mlflow.db
+      - --artifacts-destination=/tracking/artifacts
+      - --allowed-hosts=localhost:*,127.0.0.1:*,tracker:5000
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./tracking:/tracking
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:5000/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  train:
+    profiles: [training]
+    build:
+      context: .
+      target: train
+    depends_on:
+      tracker:
+        condition: service_healthy
+    environment:
+      MLFLOW_TRACKING_URI: http://tracker:5000
+      OMP_NUM_THREADS: "8"
+      MKL_NUM_THREADS: "8"
+    volumes:
+      - ./FPDS_dataset:/app/FPDS_dataset:ro
+      - ./data:/app/data
+      - ./runs:/app/runs
+      - ./weights:/app/weights
