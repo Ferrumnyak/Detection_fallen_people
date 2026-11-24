@@ -5,11 +5,12 @@ RUN pip install --no-cache-dir mlflow==3.18.0
 FROM python:3.13-slim-bookworm AS runtime
 
 WORKDIR /app
-
+# вывод питона в логах
 ENV PYTHONUNBUFFERED=1 \
     YOLO_CONFIG_DIR=/tmp/ultralytics \
     YOLO_AUTOINSTALL=false
 
+# для OpenCV (model.predict)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*

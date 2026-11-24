@@ -8,7 +8,6 @@ from shutil import copyfile
 import mlflow
 from ultralytics import YOLO, settings
 
-
 ROOT = Path(__file__).resolve().parent
 METRIC_NAMES = ("precision", "recall", "ap50", "ap50_95")
 
@@ -45,12 +44,16 @@ def test_model(model, args, dataset: str) -> None:
         name: dict(zip(METRIC_NAMES, map(float, values)))
         for name, values in rows.items()
     }
-    mlflow.log_metrics({
-        f"test/{name}/{metric}": value
-        for name, values in scores.items()
-        for metric, value in values.items()
-    })
-    (test_dir / "metrics.json").write_text(json.dumps(scores, indent=2) + "\n", encoding="utf-8")
+    mlflow.log_metrics(
+        {
+            f"test/{name}/{metric}": value
+            for name, values in scores.items()
+            for metric, value in values.items()
+        }
+    )
+    (test_dir / "metrics.json").write_text(
+        json.dumps(scores, indent=2) + "\n", encoding="utf-8"
+    )
     mlflow.log_artifacts(str(test_dir), artifact_path="test")
 
 
@@ -59,24 +62,34 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=12)
     parser.add_argument("--imgsz", type=int, default=320)
     parser.add_argument("--batch", type=int, default=8)
-    parser.add_argument("--device", default="cpu", help="cpu или номер видеокарты")
+    parser.add_argument("--device", default="cpu")
     parser.add_argument("--pretrained", default=str(ROOT / "runs" / "yolo11s.pt"))
     args = parser.parse_args()
 
     settings.update({"sync": False, "mlflow": False})
     dataset = str(ROOT / "data.yaml")
-    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000"))
+    mlflow.set_tracking_uri(
+        os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
+    )
     mlflow.set_experiment("FPDS-YOLO11s")
     with mlflow.start_run(
         run_name="Дообучение YOLO11s на FPDS v1",
         description="Готовая YOLO11s с весами COCO. Выбор весов по mAP50-95 на split3.",
     ) as run:
-        mlflow.log_params({
-            **vars(args), "model": "YOLO11s", "dataset": "FPDS v1",
-            "freeze": 10, "seed": 42, "main_metric": "val mAP50-95",
-        })
+        mlflow.log_params(
+            {
+                **vars(args),
+                "model": "YOLO11s",
+                "dataset": "FPDS v1",
+                "freeze": 10,
+                "seed": 42,
+                "main_metric": "val mAP50-95",
+            }
+        )
         mlflow.log_artifact(dataset, artifact_path="dataset")
-        mlflow.log_artifact(str(ROOT / "data" / "dataset.json"), artifact_path="dataset")
+        mlflow.log_artifact(
+            str(ROOT / "data" / "dataset.json"), artifact_path="dataset"
+        )
 
         model = YOLO(args.pretrained)
         model.add_callback("on_model_save", log_epoch)
@@ -107,8 +120,14 @@ def main() -> None:
     temporary = target.with_suffix(".tmp.pt")
     copyfile(best, temporary)
     temporary.replace(target)
-    metadata = {"experiment_id": run.info.experiment_id, "run_id": run.info.run_id, "sha256": digest}
-    target.with_name("run.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    metadata = {
+        "experiment_id": run.info.experiment_id,
+        "run_id": run.info.run_id,
+        "sha256": digest,
+    }
+    target.with_name("run.json").write_text(
+        json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
+    )
     print(f"Веса для FastAPI: {target}. Запуск MLflow: {run.info.run_id}")
 
 

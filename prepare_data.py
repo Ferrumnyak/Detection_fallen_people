@@ -5,7 +5,6 @@ from shutil import copyfile
 
 from PIL import Image
 
-
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / "FPDS_dataset" / "FPDS"
 OUTPUT = ROOT / "data"
